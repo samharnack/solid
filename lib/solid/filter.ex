@@ -34,8 +34,14 @@ defmodule Solid.Filter do
   end
 
   defp apply_filter(mod, func, args) do
-    func = String.to_existing_atom(func)
-    {:ok, Kernel.apply(mod, func, args)}
+    exported_functions = mod.__info__(:functions)
+    func_arity = {func, length(args)}
+
+    Enum.find_value(exported_functions, :error, fn {exported_func, arity} ->
+      if match?(^func_arity, {to_string(exported_func), arity}),
+        do: {:ok, Kernel.apply(mod, exported_func, args)}
+    end)
+
   rescue
     # Unknown function name atom or unknown function -> fallback
     _ in [ArgumentError, UndefinedFunctionError] -> :error
